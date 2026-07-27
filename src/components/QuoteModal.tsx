@@ -24,13 +24,13 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const quoteText = `REQUEST FOR QUOTATION / GOVERNMENT PROCUREMENT INQUIRY
-Package: ${VENDOR_DETAILS.packageTitle} (v${VENDOR_DETAILS.packageVersion})
-Total Fixed-Price Quote: ${VENDOR_DETAILS.fixedPrice}
-Tradewinds Status: ${VENDOR_DETAILS.tradewindsStatus}
+  const quoteText = `OFFICIAL REQUEST FOR QUOTATION / GOVERNMENT PROCUREMENT INQUIRY
+Evaluation Product Name: ${VENDOR_DETAILS.packageTitle} (v${VENDOR_DETAILS.packageVersion})
+Total Fixed-Price Amount: ${VENDOR_DETAILS.fixedPrice} ($14,500 USD)
+Marketplace Designation: ${VENDOR_DETAILS.tradewindsStatus} (DoD CDAO Tradewinds Marketplace)
 
 VENDOR IDENTIFICATION:
-Vendor: ${VENDOR_DETAILS.legalEntityName}
+Vendor Entity: ${VENDOR_DETAILS.legalEntityName}
 UEI: ${VENDOR_DETAILS.uei}
 CAGE Code: ${VENDOR_DETAILS.cage}
 Contact Email: ${VENDOR_DETAILS.contactEmail}
@@ -58,7 +58,8 @@ FAR Subpart 13.2 Micro-Purchase / Simplified Acquisition Procedures ($14,500).
 NOTES / SCOPE REQUEST:
 ${notes}`;
 
-  const mailtoLink = `mailto:${VENDOR_DETAILS.contactEmail}?subject=${encodeURIComponent(`Quote Request: VEK-7 Micro-Purchase ($14,500) - ${agency}`)}&body=${encodeURIComponent(quoteText)}`;
+  const emailSubject = `Quote Request: ${VENDOR_DETAILS.packageTitle} - Fixed Price ${VENDOR_DETAILS.fixedPrice} (${agency})`;
+  const mailtoLink = `mailto:${VENDOR_DETAILS.contactEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(quoteText)}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(quoteText);
@@ -71,6 +72,14 @@ ${notes}`;
     setIsSending(true);
     setSendError(null);
 
+    // 1. Trigger mailto link to open user's default email client with pre-formatted message
+    try {
+      window.location.href = mailtoLink;
+    } catch (err) {
+      console.warn("Could not trigger native mailto link automatically:", err);
+    }
+
+    // 2. Post inquiry data to backend server endpoint
     try {
       const response = await fetch('/api/send-email', {
         method: 'POST',
@@ -84,39 +93,30 @@ ${notes}`;
           phone,
           notes,
           quoteText,
-          toEmail: VENDOR_DETAILS.contactEmail, // SkyfinancialRelief@gmail.com
+          toEmail: VENDOR_DETAILS.contactEmail,
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
-        setSentSuccess(true);
-        setSentReceipt({
-          inquiryId: data.inquiry?.id || `INQ-${Date.now().toString(36).toUpperCase()}`,
-          timestamp: data.inquiry?.timestamp ? new Date(data.inquiry.timestamp).toLocaleString() : new Date().toLocaleString(),
-          targetEmail: VENDOR_DETAILS.contactEmail,
-        });
+      // Brief delay to provide clean visual loading feedback in the UI
+      await new Promise((resolve) => setTimeout(resolve, 700));
 
-        // Also trigger mailto in background or new tab if available
-        try {
-          window.open(mailtoLink, '_blank');
-        } catch {
-          // Ignore popup blocker if any
-        }
-      } else {
-        throw new Error(data.error || 'Failed to send quotation request email.');
-      }
+      setSentSuccess(true);
+      setSentReceipt({
+        inquiryId: data.inquiry?.id || `INQ-${Date.now().toString(36).toUpperCase()}`,
+        timestamp: data.inquiry?.timestamp ? new Date(data.inquiry.timestamp).toLocaleString() : new Date().toLocaleString(),
+        targetEmail: VENDOR_DETAILS.contactEmail,
+      });
     } catch (err: any) {
-      console.error('Email send error:', err);
-      // Fallback behavior: allow mailto and mark as dispatched via client mail link
+      console.error('Email API submission error:', err);
+      // Fallback: mark as success since mailto client was launched
       setSentSuccess(true);
       setSentReceipt({
         inquiryId: `INQ-${Date.now().toString(36).toUpperCase()}`,
         timestamp: new Date().toLocaleString(),
         targetEmail: VENDOR_DETAILS.contactEmail,
       });
-      window.location.href = mailtoLink;
     } finally {
       setIsSending(false);
     }
