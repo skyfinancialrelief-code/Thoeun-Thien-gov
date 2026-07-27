@@ -1,0 +1,6 @@
+{
+  "name": "VEK-7 Conformance Demonstrator & Micro-Purchase Portal",
+  "description": "Government procurement landing page and technical evidence package for VEK-7 Conformance Demonstrator v0.1.0 (Tradewinds Awardable, UEI FQJUJKVKSAS3, CAGE 1ZMG9).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
